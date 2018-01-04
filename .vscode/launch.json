@@ -14,7 +14,9 @@
             "host": "127.0.0.1",
             "program": "${fileDirname}",
             "env": {
-                "KUBECONFIG": "LOCAL"
+                "KUBECONFIG": "LOCAL",
+                "TEMPLATE_PATH": "${workspaceFolder}/test/index.md.tpl",
+                "OUTPUT_PATH": "${workspaceFolder}/test/index.md",
             },
             "args": [],
             "showLog": true

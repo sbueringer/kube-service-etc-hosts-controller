@@ -1,6 +1,7 @@
 package informer
 
 import (
+	"text/template"
 	"os/signal"
 	"net"
 	"flag"
@@ -27,6 +28,8 @@ var clientset *kubernetes.Clientset
 var serviceStore cache.Store
 var serviceController cache.Controller
 var clusterIPCIDR = "10.96.0.0/12"
+var templatePath = "10.96.0.0/12"
+var outputPath = "10.96.0.0/12"
 
 type KubeConfig int
 
@@ -47,6 +50,13 @@ var kubeConfig = CLUSTER
 // either LOCAL: $HOME\.kube\config
 // or CLUSTER: from the configuration added into every pod (environment variables..)
 func init() {
+	
+	templatePath = os.Getenv("TEMPLATE_PATH")
+	if templatePath == "" { templatePath = "/tmp/index.md.tpl"}
+
+	outputPath = os.Getenv("OUTPUT_PATH")
+	if outputPath == "" { outputPath = "/data/index.md"}
+
 	if val, ok := kubeConfigByName[os.Getenv("KUBECONFIG")]; ok {
 		kubeConfig = val
 	}
@@ -86,6 +96,7 @@ func CreateAndRunServiceInformer() {
 
 		fmt.Println("Cleaning up hosts file")
 		cleanHosts()
+		os.Exit(0)
 	}()
 
 	serviceStore, serviceController = cache.NewInformer(
@@ -114,6 +125,7 @@ func handleServiceAdd(new interface{}) {
 		fmt.Printf("EVENT: service %s ADDED\n", service.Name)
 
 		addHost(service)
+		writeServices()
 	}
 }
 
@@ -122,6 +134,7 @@ func handleServiceUpdate(_, new interface{}) {
 		fmt.Printf("EVENT: service %s UPDATED\n", service.Name)
 
 		addHost(service)
+		writeServices()
 	}
 }
 
@@ -130,6 +143,7 @@ func handleServiceDelete(new interface{}) {
 		fmt.Printf("EVENT: service %s ADDED\n", service.Name)
 
 		removeHost(service)
+		writeServices()
 	}
 }
 
@@ -178,4 +192,30 @@ func removeHost(service *v1.Service) {
 	if err := hosts.Flush(); err != nil {
 		panic(err)
 	}
+}
+
+type Services struct {
+	Services map[string][]*v1.Service
+}
+
+func writeServices(){
+	svcs := Services{
+		Services: make(map[string][]*v1.Service),
+	}
+
+	for _, item := range serviceStore.List(){
+		if svc, ok := item.(*v1.Service); ok {
+			ns := svc.Namespace
+			svcs.Services[ns] = append(svcs.Services[ns], svc)
+		}
+	}
+
+	tmpl, err := template.ParseFiles(templatePath)
+	if err != nil { panic(err) }
+	
+	outputFile, err := os.Create(outputPath)
+	if err != nil { panic(err) }
+
+	err = tmpl.Execute(outputFile, svcs)
+	if err != nil { panic(err) }
 }
