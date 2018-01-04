@@ -13,8 +13,8 @@ install: go get -v ./...
 script: $TRAVIS_BUILD_DIR/travis-build.sh
 
 after_success:
-- if [ "$TRAVIS_BRANCH" == "master" ]; 
+- if [ "$TRAVIS_BRANCH" == "master" ]
   then
-    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD";
-    docker push sbueringer/kube-service-etc-hosts-operator;
+    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+    docker push sbueringer/kube-service-etc-hosts-operator
   fi
