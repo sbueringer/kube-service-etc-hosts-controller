@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TRAVIS_BUILD_DIR=${TRAVIS_BUILD_DIR:-dist}
+TRAVIS_BUILD_DIR=${TRAVIS_BUILD_DIR:-"."}
 
 export GOOS=linux
 export GOARCH=amd64

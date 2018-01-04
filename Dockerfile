@@ -1,6 +1,6 @@
 FROM scratch
 
-COPY dist/main /main
+COPY main /main
 
 COPY docker/index.md.tpl /tmp/index.md.tpl
 
