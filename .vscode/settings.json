@@ -1,3 +1,4 @@
 {
-    "go.inferGopath": true
-}ch 
+    "go.inferGopath": true,
+    "jsonnet.executablePath": "/home/fedora/code/gopath/src/github.com/sbueringer/kube-service-etc-hosts-operator/kube-service-etc-hosts-operator/ksonnetwrapper",
+}
