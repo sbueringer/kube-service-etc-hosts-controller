@@ -1,4 +1,8 @@
 {
     "go.inferGopath": true,
     "jsonnet.executablePath": "/home/fedora/code/gopath/src/github.com/sbueringer/kube-service-etc-hosts-operator/kube-service-etc-hosts-operator/ksonnetwrapper",
+    "jsonnet.libPaths": [
+        "/home/fedora/code/gopath/src/github.com/sbueringer/kube-service-etc-hosts-operator/kube-service-etc-hosts-operator/ksonnet-lib/ksonnet.beta.3"
+    ],
+    "vs-squash.squash-server-url": "http://localhost:8001/api/v1/namespaces/squash/services/squash-server:http-squash-api/proxy/api/v2"
 }

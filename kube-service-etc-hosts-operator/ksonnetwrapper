@@ -3,4 +3,5 @@ JSONNET=$(which jsonnet)
 FOLDER="/home/fedora/code/gopath/src/github.com/sbueringer/kube-service-etc-hosts-operator/kube-service-etc-hosts-operator"
 COMPONENTS="'__ksonnet/params'=$FOLDER/components/params.libsonnet"
 
-bash -c "$JSONNET --ext-code-file $COMPONENTS -J $FOLDER/ksonnet-lib/ksonnet.beta.3 -J $FOLDER/vendor $@"
+for last; do true; done
+bash -c "$JSONNET --ext-code-file $COMPONENTS -J $FOLDER/ksonnet-lib/ksonnet.beta.3 -J $FOLDER/vendor $last"

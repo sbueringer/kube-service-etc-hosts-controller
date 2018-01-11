@@ -1,8 +1,8 @@
-FROM scratch
+FROM alpine
 
-COPY main /main
+ADD dist/main /
 
-COPY docker/index.md.tpl /tmp/index.md.tpl
+ADD docker/index.md.tpl /tmp/index.md.tpl
 
 EXPOSE 80
 

@@ -8,12 +8,8 @@ language: go
 go:
   - 1.9.x
 
-install: go get -v ./...
+before_install:
+- chmod +x ./build.sh
 
-script: $TRAVIS_BUILD_DIR/travis-build.sh
-
-after_success:
-- if [ "$TRAVIS_BRANCH" == "master" ]; then
-  docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD";
-  docker push sbueringer/kube-service-etc-hosts-operator;
-  fi
+install:
+- ./build.sh

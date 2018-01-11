@@ -28,8 +28,9 @@ var clientset *kubernetes.Clientset
 var serviceStore cache.Store
 var serviceController cache.Controller
 var clusterIPCIDR = "10.96.0.0/12"
-var templatePath = "10.96.0.0/12"
-var outputPath = "10.96.0.0/12"
+var templatePath string
+var outputPath string
+var hostsPath string
 
 type KubeConfig int
 
@@ -56,6 +57,9 @@ func init() {
 
 	outputPath = os.Getenv("OUTPUT_PATH")
 	if outputPath == "" { outputPath = "/data/index.md"}
+
+	hostsPath = os.Getenv("HOSTS_PATH")
+	if hostsPath == "" { templatePath = "/etc/hosts"}
 
 	if val, ok := kubeConfigByName[os.Getenv("KUBECONFIG")]; ok {
 		kubeConfig = val
@@ -147,8 +151,16 @@ func handleServiceDelete(new interface{}) {
 	}
 }
 
+func newHosts() (goodhosts.Hosts, error) {
+	hosts := goodhosts.Hosts{Path: hostsPath}
+
+	err := hosts.Load()
+
+	return hosts, err
+}
+
 func cleanHosts(){
-	hosts, err := goodhosts.NewHosts()
+	hosts, err := newHosts()
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +181,7 @@ func cleanHosts(){
 }
 
 func addHost(service *v1.Service) {
-	hosts, err := goodhosts.NewHosts()
+	hosts, err := newHosts()
 	if err != nil {
 		panic(err)
 	}
@@ -182,7 +194,7 @@ func addHost(service *v1.Service) {
 }
 
 func removeHost(service *v1.Service) {
-	hosts, err := goodhosts.NewHosts()
+	hosts, err := newHosts()
 	if err != nil {
 		panic(err)
 	}
