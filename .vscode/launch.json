@@ -17,6 +17,7 @@
                 "KUBECONFIG": "LOCAL",
                 "TEMPLATE_PATH": "${workspaceFolder}/test/index.md.tpl",
                 "OUTPUT_PATH": "${workspaceFolder}/test/index.md",
+                "HOSTS_PATH": "${workspaceFolder}/test/hosts"
             },
             "args": [],
             "showLog": true

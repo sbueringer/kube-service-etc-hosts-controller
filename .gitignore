@@ -1,3 +1,4 @@
 cmd/debug
 dist
 test/index.md
+test/hosts

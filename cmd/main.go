@@ -8,6 +8,7 @@ import (
 // forever to keep the program running
 func main() {
 
+	go informer.CreateAndRunIngressInformer()
 	go informer.CreateAndRunServiceInformer()
 
 	// Wait forever

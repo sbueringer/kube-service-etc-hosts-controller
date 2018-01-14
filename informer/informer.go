@@ -1,17 +1,19 @@
 package informer
 
 import (
-	"text/template"
-	"os/signal"
-	"net"
 	"flag"
 	"fmt"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/lextoumbourou/goodhosts"
 
 	v1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,10 +29,23 @@ import (
 var clientset *kubernetes.Clientset
 var serviceStore cache.Store
 var serviceController cache.Controller
+var ingressStore cache.Store
+var ingressController cache.Controller
 var clusterIPCIDR = "10.96.0.0/12"
 var templatePath string
 var outputPath string
 var hostsPath string
+var defaultIngressHost string
+var aliasMappings *AliasMappings
+
+type AliasMapping struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
+type AliasMappings struct {
+	Mappings []AliasMapping `json:"mappings"`
+}
 
 type KubeConfig int
 
@@ -51,18 +66,39 @@ var kubeConfig = CLUSTER
 // either LOCAL: $HOME\.kube\config
 // or CLUSTER: from the configuration added into every pod (environment variables..)
 func init() {
-	
+
 	templatePath = os.Getenv("TEMPLATE_PATH")
-	if templatePath == "" { templatePath = "/tmp/index.md.tpl"}
+	if templatePath == "" {
+		templatePath = "/tmp/index.md.tpl"
+	}
 
 	outputPath = os.Getenv("OUTPUT_PATH")
-	if outputPath == "" { outputPath = "/data/index.md"}
+	if outputPath == "" {
+		outputPath = "/data/index.md"
+	}
 
 	hostsPath = os.Getenv("HOSTS_PATH")
-	if hostsPath == "" { templatePath = "/etc/hosts"}
+	if hostsPath == "" {
+		hostsPath = "/etc/hosts"
+	}
+
+	defaultIngressHost = os.Getenv("DEFAULT_INGRESS_HOST")
+	if defaultIngressHost == "" {
+		defaultIngressHost = "istio"
+	}
 
 	if val, ok := kubeConfigByName[os.Getenv("KUBECONFIG")]; ok {
 		kubeConfig = val
+	}
+
+	// TODO get from yaml file
+	aliasMappings = &AliasMappings{
+		Mappings: []AliasMapping{
+			AliasMapping{
+				Source: "istio-ingress.istio-system",
+				Target: "istio",
+			},
+		},
 	}
 
 	var err error
@@ -87,18 +123,37 @@ func init() {
 	}
 }
 
-// Creates and starts an informer which watches services
-// and stores them in the serviceStore
-// whenever services are added or updated the respective functions are called
+func CreateAndRunIngressInformer() {
+	ingressStore, ingressController = cache.NewInformer(
+		&cache.ListWatch{
+			ListFunc: func(lo metav1.ListOptions) (runtime.Object, error) {
+				return clientset.ExtensionsV1beta1().Ingresses("").List(lo)
+			},
+			WatchFunc: func(lo metav1.ListOptions) (watch.Interface, error) {
+				lo.Watch = true
+				return clientset.ExtensionsV1beta1().Ingresses("").Watch(lo)
+			},
+		},
+		&v1beta1.Ingress{},
+		300*time.Second,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    handleIngressAdd,
+			UpdateFunc: handleIngressUpdate,
+			DeleteFunc: handleIngressDelete,
+		},
+	)
+	ingressController.Run(wait.NeverStop)
+}
+
 func CreateAndRunServiceInformer() {
 	cleanHosts()
 
 	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, os.Interrupt)
-	go func(){
-		<- sigchan 
+	signal.Notify(sigchan, syscall.SIGTERM)
+	signal.Notify(sigchan, syscall.SIGINT)
+	go func() {
+		<-sigchan
 
-		fmt.Println("Cleaning up hosts file")
 		cleanHosts()
 		os.Exit(0)
 	}()
@@ -129,7 +184,7 @@ func handleServiceAdd(new interface{}) {
 		fmt.Printf("EVENT: service %s ADDED\n", service.Name)
 
 		addHost(service)
-		writeServices()
+		writeOutput()
 	}
 }
 
@@ -138,16 +193,37 @@ func handleServiceUpdate(_, new interface{}) {
 		fmt.Printf("EVENT: service %s UPDATED\n", service.Name)
 
 		addHost(service)
-		writeServices()
+		writeOutput()
 	}
 }
 
 func handleServiceDelete(new interface{}) {
 	if service, ok := new.(*v1.Service); ok {
-		fmt.Printf("EVENT: service %s ADDED\n", service.Name)
+		fmt.Printf("EVENT: service %s DELETED\n", service.Name)
 
 		removeHost(service)
-		writeServices()
+		writeOutput()
+	}
+}
+
+func handleIngressAdd(new interface{}) {
+	if service, ok := new.(*v1beta1.Ingress); ok {
+		fmt.Printf("EVENT: ingress %s ADDED\n", service.Name)
+		writeOutput()
+	}
+}
+
+func handleIngressUpdate(_, new interface{}) {
+	if service, ok := new.(*v1beta1.Ingress); ok {
+		fmt.Printf("EVENT: ingress %s UPDATED\n", service.Name)
+		writeOutput()
+	}
+}
+
+func handleIngressDelete(new interface{}) {
+	if service, ok := new.(*v1beta1.Ingress); ok {
+		fmt.Printf("EVENT: ingress %s DELETED\n", service.Name)
+		writeOutput()
 	}
 }
 
@@ -159,7 +235,8 @@ func newHosts() (goodhosts.Hosts, error) {
 	return hosts, err
 }
 
-func cleanHosts(){
+func cleanHosts() {
+	fmt.Printf("Cleaning hosts file: %s\n", hostsPath)
 	hosts, err := newHosts()
 	if err != nil {
 		panic(err)
@@ -186,7 +263,16 @@ func addHost(service *v1.Service) {
 		panic(err)
 	}
 
-	hosts.Add(service.Spec.ClusterIP, service.Name+"."+service.Namespace)
+	alias := service.Name + "." + service.Namespace
+	hosts.Add(service.Spec.ClusterIP, alias)
+	fmt.Printf("\t%s: Added %s %s\n", hostsPath, service.Spec.ClusterIP, alias)
+
+	for _, aliasMapping := range aliasMappings.Mappings {
+		if alias == aliasMapping.Source {
+			hosts.Add(service.Spec.ClusterIP, aliasMapping.Target)
+			fmt.Printf("\t%s: Added %s %s\n", hostsPath, service.Spec.ClusterIP, aliasMapping.Target)
+		}
+	}
 
 	if err := hosts.Flush(); err != nil {
 		panic(err)
@@ -206,28 +292,45 @@ func removeHost(service *v1.Service) {
 	}
 }
 
-type Services struct {
-	Services map[string][]*v1.Service
+type Data struct {
+	Services  map[string][]*v1.Service
+	Ingresses map[string][]*v1beta1.Ingress
+	DefaultIngressHost string
 }
 
-func writeServices(){
-	svcs := Services{
-		Services: make(map[string][]*v1.Service),
+func writeOutput() {
+	data := Data{
+		Services:  make(map[string][]*v1.Service),
+		Ingresses: make(map[string][]*v1beta1.Ingress),
+		DefaultIngressHost: defaultIngressHost,
 	}
 
-	for _, item := range serviceStore.List(){
+	for _, item := range serviceStore.List() {
 		if svc, ok := item.(*v1.Service); ok {
 			ns := svc.Namespace
-			svcs.Services[ns] = append(svcs.Services[ns], svc)
+			data.Services[ns] = append(data.Services[ns], svc)
+		}
+	}
+
+	for _, item := range ingressStore.List() {
+		if ingress, ok := item.(*v1beta1.Ingress); ok {
+			ns := ingress.Namespace
+			data.Ingresses[ns] = append(data.Ingresses[ns], ingress)
 		}
 	}
 
 	tmpl, err := template.ParseFiles(templatePath)
-	if err != nil { panic(err) }
-	
-	outputFile, err := os.Create(outputPath)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 
-	err = tmpl.Execute(outputFile, svcs)
-	if err != nil { panic(err) }
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		panic(err)
+	}
+
+	err = tmpl.Execute(outputFile, data)
+	if err != nil {
+		panic(err)
+	}
 }

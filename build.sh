@@ -15,7 +15,7 @@ env | grep TRAVIS
 
 FOLDER=/gopath/src/github.com/sbueringer/kube-service-etc-hosts-operator
 
-rm -rf dist
+sudo rm -rf dist
 mkdir dist
 
 docker run -e GOOS=linux -e GOARCH=amd64 -e GOPATH=/gopath -e CGO_ENABLED=0 \
