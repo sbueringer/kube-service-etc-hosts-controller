@@ -15,6 +15,7 @@
             "program": "${fileDirname}",
             "env": {
                 "KUBECONFIG": "LOCAL",
+                "ALIAS_MAPPING_PATH": "${workspaceFolder}/test/mappings.yaml",
                 "TEMPLATE_PATH": "${workspaceFolder}/test/index.md.tpl",
                 "OUTPUT_PATH": "${workspaceFolder}/test/index.md",
                 "HOSTS_PATH": "${workspaceFolder}/test/hosts"

@@ -1,0 +1,8 @@
+mappings:
+- source: istio-ingress.istio-system
+  targets: 
+  - istio.io
+  - grafana.istio.io
+  - prometheus.istio.io
+  - zipkin.istio.io
+  - servicegraph.istio.io

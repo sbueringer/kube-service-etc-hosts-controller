@@ -15,12 +15,27 @@ local annotations = {"sidecar.istio.io/inject": "false"};
 
 local caddyConfig = configMap
   .new(
-    params.name,
+    params.name+"-caddyfile",
     {Caddyfile: 
      |||
      0.0.0.0:80 {
        markdown
      }
+  |||},
+  );
+local mappingsConfigMap = configMap
+  .new(
+    params.name + "-alias-mappings",
+    {"mappings.yaml": 
+     |||
+     mappings:
+     - source: istio-ingress.istio-system
+       targets: 
+       - istio.io
+       - grafana.istio.io
+       - prometheus.istio.io
+       - zipkin.istio.io
+       - servicegraph.istio.io
   |||},
   );
 
@@ -40,7 +55,8 @@ local appDeployment = deployment
       .withEnv(container.envType.new("HOSTS_PATH", "/etcout/hosts"))
       .withVolumeMounts(
         [container.volumeMountsType.new("data", "/data", false),
-         container.volumeMountsType.new("etc", "/etcout", false)])
+         container.volumeMountsType.new("etc", "/etcout", false),
+         container.volumeMountsType.new("alias-mappings", "/alias", true)])
       .withImagePullPolicy("IfNotPresent"),
     labels)
     .withContainersMixin(
@@ -55,7 +71,8 @@ local appDeployment = deployment
     ) + deployment.mixin.spec.template.spec.withVolumes(
       [volume.fromEmptyDir("data"),
       volume.fromHostPath("etc", "/etc"),
-      volume.fromConfigMap("caddy", params.name, {key: "Caddyfile", path: "Caddyfile"})]
+      volume.fromConfigMap("caddy", params.name+"-caddyfile", {key: "Caddyfile", path: "Caddyfile"}),
+      volume.fromConfigMap("alias-mappings", params.name+"-alias-mappings", {key: "mappings.yaml", path: "mappings.yaml"})]
     ) + deployment.mixin.metadata.withAnnotations(annotations);
 
-k.core.v1.list.new([appService, appDeployment, caddyConfig])
+k.core.v1.list.new([appService, appDeployment, caddyConfig, mappingsConfigMap])

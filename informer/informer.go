@@ -15,6 +15,7 @@
 package informer
 
 import (
+	"io/ioutil"
 	"flag"
 	"fmt"
 	"net"
@@ -23,6 +24,8 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/lextoumbourou/goodhosts"
 
@@ -46,6 +49,7 @@ var serviceController cache.Controller
 var ingressStore cache.Store
 var ingressController cache.Controller
 var clusterIPCIDR = "10.96.0.0/12"
+var aliasMappingPath string
 var templatePath string
 var outputPath string
 var hostsPath string
@@ -54,7 +58,7 @@ var aliasMappings *AliasMappings
 
 type AliasMapping struct {
 	Source string `json:"source"`
-	Target string `json:"target"`
+	Targets []string `json:"targets"`
 }
 
 type AliasMappings struct {
@@ -81,6 +85,10 @@ var kubeConfig = CLUSTER
 // or CLUSTER: from the configuration added into every pod (environment variables..)
 func init() {
 
+	aliasMappingPath = os.Getenv("ALIAS_MAPPING_PATH")
+	if aliasMappingPath == "" {
+		aliasMappingPath= "/alias/mappings.yaml"
+	}
 	templatePath = os.Getenv("TEMPLATE_PATH")
 	if templatePath == "" {
 		templatePath = "/tmp/index.md.tpl"
@@ -105,17 +113,12 @@ func init() {
 		kubeConfig = val
 	}
 
-	// TODO get from yaml file
-	aliasMappings = &AliasMappings{
-		Mappings: []AliasMapping{
-			AliasMapping{
-				Source: "istio-ingress.istio-system",
-				Target: "istio",
-			},
-		},
-	}
+	yamlFile, err := ioutil.ReadFile(aliasMappingPath)
+	if err != nil { panic(err) }
 
-	var err error
+	err = yaml.Unmarshal(yamlFile, &aliasMappings)
+	if err != nil { panic(err) }
+
 	var config *rest.Config
 
 	switch kubeConfig {
@@ -283,8 +286,10 @@ func addHost(service *v1.Service) {
 
 	for _, aliasMapping := range aliasMappings.Mappings {
 		if alias == aliasMapping.Source {
-			hosts.Add(service.Spec.ClusterIP, aliasMapping.Target)
-			fmt.Printf("\t%s: Added %s %s\n", hostsPath, service.Spec.ClusterIP, aliasMapping.Target)
+			for _, target := range aliasMapping.Targets {
+				hosts.Add(service.Spec.ClusterIP, target)
+			}
+			fmt.Printf("\t%s: Added %s %s\n", hostsPath, service.Spec.ClusterIP, aliasMapping.Targets)
 		}
 	}
 

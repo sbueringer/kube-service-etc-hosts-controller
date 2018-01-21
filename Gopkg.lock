@@ -150,6 +150,17 @@
   revision = "59fac5042749a5afb9af70e813da1dd5474f0167"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/ksonnet/ksonnet-lib"
+  packages = [
+    "ksonnet-gen/jsonnet",
+    "ksonnet-gen/ksonnet",
+    "ksonnet-gen/kubespec",
+    "ksonnet-gen/kubeversion"
+  ]
+  revision = "5d5d68fe82ad2aabc945a524a663c3ff332b97b8"
+
+[[projects]]
   name = "github.com/lextoumbourou/goodhosts"
   packages = ["."]
   revision = "f9508a5690d9f48bfe5449d967cee37434591a29"
@@ -389,6 +400,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6d1c07df86a0df5e256346ca3ef83064cc967b134f94ef560cbb723e8135a850"
+  inputs-digest = "8c11bc4ef4f69455e56561cfd06d6f521d0f21774022856a47a24cfe6319c004"
   solver-name = "gps-cdcl"
   solver-version = 1
