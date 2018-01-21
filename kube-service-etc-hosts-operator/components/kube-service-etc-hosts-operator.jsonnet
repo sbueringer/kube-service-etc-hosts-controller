@@ -11,6 +11,7 @@ local volume = deployment.mixin.spec.template.spec.volumesType;
 
 local targetPort = params.containerPort;
 local labels = {app: params.name};
+local annotations = {"sidecar.istio.io/inject": "false"};
 
 local caddyConfig = configMap
   .new(
@@ -55,6 +56,6 @@ local appDeployment = deployment
       [volume.fromEmptyDir("data"),
       volume.fromHostPath("etc", "/etc"),
       volume.fromConfigMap("caddy", params.name, {key: "Caddyfile", path: "Caddyfile"})]
-    );
+    ) + deployment.mixin.metadata.withAnnotations(annotations);
 
 k.core.v1.list.new([appService, appDeployment, caddyConfig])
