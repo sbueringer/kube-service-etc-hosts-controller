@@ -31,10 +31,18 @@ local mappingsConfigMap = configMap
      mappings:
      - source: istio-ingress.istio-system
        targets: 
-       - istio.io
+       - ingress.istio.io
+     - source: grafana.istio-system
+       targets: 
        - grafana.istio.io
+     - source: prometheus.istio-system
+       targets:
        - prometheus.istio.io
+     - source: zipkin.istio-system
+       targets:
        - zipkin.istio.io
+     - source: servicegraph.istio-system
+       targets:
        - servicegraph.istio.io
   |||},
   );
