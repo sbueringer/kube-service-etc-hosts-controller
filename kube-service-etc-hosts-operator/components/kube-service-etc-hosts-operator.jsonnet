@@ -29,21 +29,27 @@ local mappingsConfigMap = configMap
     {"mappings.yaml": 
      |||
      mappings:
-     - source: istio-ingress.istio-system
+     - source: istio-ingressgateway.istio-system
        targets: 
        - ingress.istio.io
-     - source: grafana.istio-system
+     - source: grafana-node.istio-system
        targets: 
        - grafana.istio.io
-     - source: prometheus.istio-system
+     - source: prometheus-node.istio-system
        targets:
        - prometheus.istio.io
-     - source: zipkin.istio-system
+     - source: jaeger-node.istio-system
        targets:
-       - zipkin.istio.io
-     - source: servicegraph.istio-system
+       - jaeger.istio.io
+     - source: servicegraph-node.istio-system
        targets:
        - servicegraph.istio.io
+     - source: weave-scope-app.weave
+       targets:
+       - weavescope.istio.io
+     - source: vistio-web.vistio
+       targets:
+       - vistio.istio.io
   |||},
   );
 
